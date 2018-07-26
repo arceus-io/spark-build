@@ -284,189 +284,88 @@ func parseApplicationFile(args *sparkArgs) error {
 	return nil
 }
 
-func stringify(word string) string {
-	return "\"" + word + "\""
-}
-
+/*
+  spark-submit by convention uses '--arg val' while kingpin only supports --arg=val
+  cleanUpSubmitArgs merges all white-spaced configs in submit-args for kingpin to process
+*/
 func cleanUpSubmitArgs(argsStr string, boolVals []*sparkVal) ([]string, []string) {
+	// collapse two or more spaces to one
 	argsStr = collapseSpacesPattern.ReplaceAllString(argsStr, " ")
+	// clean up any instances of shell-style escaped newlines: "arg1\\narg2" => "arg1 arg2"
 	argsStr = strings.TrimSpace(backslashNewlinePattern.ReplaceAllLiteralString(argsStr, " "))
-	
-	argss, err := shellwords.Parse(argsStr)
+	// shellwords cleans submit-args of special characters and splits on whitespace
+	args, err := shellwords.Parse(argsStr)
 	if err != nil {
 		fmt.Printf("Could not parse string args correctly. Error: %v+", err)
 		os.Exit(1)
 	}
-	// fmt.Printf("old shell args: %s\n", argss)
-	// for idx, v := range argss {
-	// 	fmt.Printf("%d: %s\n", idx, v)
-	// }
-
-	sparkArgss := make([]string, 0)
-	appArgss := make([]string, 0)
-
-	for i := 0; i < len(argss); {
-		current := argss[i]
-		//fmt.Printf("current: %s\n", current)
-		// Handle flags; eg --conf, --driver-java-options, etc
-		if strings.HasPrefix(current, "--") {
-			// If current is a boolean flag add to sparkArgs; eg --supervise
+	sparkArgs, appArgs := make([]string, 0), make([]string, 0)
+ARGLOOP:
+	for i := 0; i < len(args); {
+		current := args[i]
+		switch {
+		// if current is a spark jar/app, we've processed all flags 
+		// add jar to sparkArgs and append the rest to appArgs
+		case strings.HasSuffix(current, ".jar") || strings.HasSuffix(current, ".r") || strings.HasSuffix(current, ".py"):
+			sparkArgs = append(sparkArgs, args[i])
+			appArgs = append(appArgs, args[i+1:]...)
+			break ARGLOOP
+		case strings.HasPrefix(current, "--"):
+			// if current is a boolean flag add to sparkArgs; eg --supervise
 			for _, boolVal := range boolVals {
 				if boolVal.flagName == current[2:] {
-					sparkArgss = append(sparkArgss, current)
+					sparkArgs = append(sparkArgs, current)
 					i++
-					current = argss[i]
-					break
-				}
-			}
-			// if not boolean, merge with next item into arg="val"; eg --driver-memory="512m"
-			next := argss[i+1]
-			// idx := strings.Index(next, "=")
-			// // If '=' in value, then it's a config with its own arg=val and we should surround in quotes
-			// // eg conf spark.driver.extraJavaOptions=XX => conf=spark.driver.extraJavaOptions="XX"
-			// if idx >= 0 {
-			// 	word := stringify(next[idx+1:])
-			// 	next = next[:idx] + "=" + word
-			// }
-			sparkArgss = append(sparkArgss, current+"="+next)
-			i += 2
-			continue
-		}
-		// If current is a spark jar/app, add it to sparkArgs and append the rest to appArgs
-		if strings.HasSuffix(current, ".jar") || strings.HasSuffix(current, ".r") || strings.HasSuffix(current, ".py") {
-			//fmt.Printf("Seeing the jar file: %s\n", current)
-			sparkArgss = append(sparkArgss, argss[i])
-			appArgss = append(appArgss, argss[i+1:]...)
-			break
-		} else {
-			//fmt.Printf("Seeing var: %s\n", current)
-			// otherwise current is a continuation of the last arg and should not be split
-			// eg extraJavaOptions="-Dparam1 -Dparam2" would have been parsed as [extraJavaOptions, -Dparam1, -Dparam2]
-
-			// Delete previous end quote and add current val
-			previous := sparkArgss[len(sparkArgss)-1]
-			combined := previous[:len(previous)-1] + " " + current
-			sparkArgss = append(sparkArgss[:len(sparkArgss)-1], combined)
-			i++
-		}
-	}
-
-	// fmt.Println("Spark Args:")
-	// for idx, v := range sparkArgss {
-	// 	fmt.Printf("%d: %s\n", idx, v)
-	// }
-
-	// fmt.Println("App Args:")
-	// for idx, v := range appArgss {
-	// 	fmt.Printf("%d: %s\n", idx, v)
-	// }
-
-	if len(sparkArgss) > 0 {
-		// fmt.Printf("sparkArgs: %s\nargArgs: %s]\n", sparkArgss, appArgss)
-		client.PrintVerbose("Translated spark-submit arguments: '%s'", sparkArgss)
-		client.PrintVerbose("Translated application arguments: '%s'", appArgss)
-		return sparkArgss, appArgss
-	}
-
-    // collapse two or more spaces to one.
-	argsCompacted := collapseSpacesPattern.ReplaceAllString(argsStr, " ")
-	// clean up any instances of shell-style escaped newlines: "arg1\\narg2" => "arg1 arg2"
-	argsCleaned := strings.TrimSpace(backslashNewlinePattern.ReplaceAllLiteralString(argsCompacted, " "))
-	// HACK: spark-submit uses '--arg val' by convention, while kingpin only supports '--arg=val'.
-	//       translate the former into the latter for kingpin to parse.
-	args := strings.Split(argsCleaned, " ")
-	argsEquals := make([]string, 0)
-	appFlags := make([]string, 0)
-	i := 0
-	inQuotes := false
-ARGLOOP:
-	for i < len(args) {
-		arg := args[i]
-		if !strings.HasPrefix(arg, "-") {
-			// looks like we've exited the flags entirely, and are now at the jar and/or args.
-			// any arguments without a dash at the front should've been joined to preceding keys.
-			// flush the rest and exit.
-			for i < len(args) {
-				arg = args[i]
-				// if we have a --flag going to the application we need to take the arg (flag) and the value ONLY
-				// if it's not of the format --flag=val which scopt allows
-				if strings.HasPrefix(arg, "-") {
-					appFlags = append(appFlags, arg)
-					if strings.Contains(arg, "=") || (i + 1) >= len(args) {
-						i += 1
-					} else {
-						// if there's a value with this flag, add it
-						if !strings.HasPrefix(args[i + 1], "-") {
-							appFlags = append(appFlags, args[i + 1])
-							i += 1
-						}
-						i += 1
-					}
-				} else {
-					argsEquals = append(argsEquals, arg)
-					i += 1
-				}
-			}
-			break
-		}
-		// Parse Spark configuration:
-		// join this arg to the next arg if...:
-		// 1. we're not at the last arg in the array
-		// 2. we start with "--"
-		// 3. we don't already contain "=" (already joined)
-		// 4. we aren't a boolean value (no val to join)
-
-
-		// if this is a configuration flag like --conf or --driver-driver-options that doesn't have a
-		// '=' for assignment.
-		if i < len(args)-1 && strings.HasPrefix(arg, "--") && !strings.Contains(arg, "=") {
-			// check for boolean:
-			for _, boolVal := range boolVals {
-				if boolVal.flagName == arg[2:] {
-					argsEquals = append(argsEquals, arg)
-					i += 1
 					continue ARGLOOP
 				}
 			}
-
-			// if this is the beginning of a string of args e.g. '-Djava.option=setting -Djava.paramter=nonsense'
-			// we want to remove the leading single quote. Also remove internal quotes when the arg == --conf or some
-			// other named configuration
-			// e.g.: next = spark.driver.extraJavaOptions='-Djava.something=somethingelse
-			// arg =  --conf
-			arg = strings.TrimPrefix(arg, "'")
-			next := args[i + 1]
-			if strings.HasPrefix(next, "'") {  // e.g. --driver-java-options '-Djava.config=setting... <-- next
-				inQuotes = true
-			}
-			next = strings.Replace(next, "'", "", -1)  // remove internal quotes
-			argsEquals = append(argsEquals, arg + "=" + next)
+			// if not boolean, merge with next item into arg=val; eg --driver-memory=512m
+			next := args[i+1]
+			sparkArgs = append(sparkArgs, current+"="+next)
 			i += 2
-		} else if strings.HasSuffix(arg, "'") {  // attach the final arg to the string of args without the quote
-			inQuotes = false  // has suffix means we're out of the quotes
-			arg = strings.TrimSuffix(arg, "'")
-			argsEquals[len(argsEquals) - 1] = argsEquals[len(argsEquals) - 1] + " " + arg
-			i += 1
-		} else {
-			cleanedArg := strings.Replace(arg, "'", "", -1)
-			if inQuotes { // join this arg to the last one because it's all in quotes
-				argsEquals[len(argsEquals) - 1] = argsEquals[len(argsEquals) - 1] + " " + cleanedArg
-			} else {
-				if strings.Contains(arg, "'") {  // e.g. --driver-java-options='-Djava.firstConfig=firstSetting
-					inQuotes = true
-				}
-				// already joined or at the end, pass through
-				argsEquals = append(argsEquals, cleanedArg)
-			}
-			i += 1
+		default:
+			// otherwise current is a continuation of the last arg and should not be split
+			// eg extraJavaOptions="-Dparam1 -Dparam2" was parsed as [extraJavaOptions, -Dparam1, -Dparam2]
+			previous := sparkArgs[len(sparkArgs)-1]
+			combined := previous[:len(previous)-1] + " " + current
+			sparkArgs = append(sparkArgs[:len(sparkArgs)-1], combined)
+			i++
 		}
-	}
-	if config.Verbose {
-		log.Printf("Translated spark-submit arguments: '%s'\n", argsEquals)
-		log.Printf("Translated application arguments: '%s'\n", appFlags)
+		// if strings.HasPrefix(current, "--") {
+		// 	// If current is a boolean flag add to sparkArgs; eg --supervise
+		// 	for _, boolVal := range boolVals {
+		// 		if boolVal.flagName == current[2:] {
+		// 			sparkArgs = append(sparkArgs, current)
+		// 			i++
+		// 			continue ARGLOOP
+		// 		}
+		// 	}
+		// 	// if not boolean, merge with next item into arg="val"; eg --driver-memory="512m"
+		// 	next := args[i+1]
+		// 	sparkArgs = append(sparkArgs, current+"="+next)
+		// 	i += 2
+		// 	continue
+		// }
+		// // If current is a spark jar/app, add it to sparkArgs and append the rest to appArgs
+		// if strings.HasSuffix(current, ".jar") || strings.HasSuffix(current, ".r") || strings.HasSuffix(current, ".py") {
+		// 	sparkArgs = append(sparkArgs, args[i])
+		// 	appArgs = append(appArgs, args[i+1:]...)
+		// 	break
+		// } else {
+		// 	// otherwise current is a continuation of the last arg and should not be split
+		// 	// eg extraJavaOptions="-Dparam1 -Dparam2" would have been parsed as [extraJavaOptions, -Dparam1, -Dparam2]
+		// 	previous := sparkArgs[len(sparkArgs)-1]
+		// 	combined := previous[:len(previous)-1] + " " + current
+		// 	sparkArgs = append(sparkArgs[:len(sparkArgs)-1], combined)
+		// 	i++
+		// }
 	}
 
-	return argsEquals, appFlags
+	if config.Verbose {
+		client.PrintVerbose("Translated spark-submit arguments: '%s'", sparkArgs)
+		client.PrintVerbose("Translated application arguments: '%s'", appArgs)
+	}
+	return sparkArgs, appArgs
 }
 
 func getValsFromPropertiesFile(path string) map[string]string {
