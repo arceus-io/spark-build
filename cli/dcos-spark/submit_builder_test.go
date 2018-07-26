@@ -45,20 +45,18 @@ func (suite *CliTestSuite) TestCleanUpSubmitArgs() {
 	submitArgs, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
 	fmt.Printf("Actual: %s", submitArgs)
 	if "--conf=spark.app.name=kerberosStreaming" != submitArgs[0] {
-		fmt.Printf("Actual: %s", submitArgs[0])
 		suite.T().Errorf("Failed to reduce spaces while cleaning submit args.")
 	}
 
 	if "--conf=spark.cores.max=8" != submitArgs[1] {
-		fmt.Printf("Actual: %s", submitArgs[1])
 		suite.T().Errorf("Failed to reduce spaces while cleaning submit args.")
 	}
 }
 
 func (suite *CliTestSuite) TestCleanUpSubmitArgs_With_Spaces() {
 	_, args := sparkSubmitArgSetup()
-	inputArgs := "--name 'App with spaces in name' --conf spark.driver.extraJavaOptions='-XX:+PrintGC -Dparam1=val1 -Dparam2=val2' main.py 100"
-	expected := "--name=\"App with spaces in name\" --conf=spark.driver.extraJavaOptions=\"-XX:+PrintGC -Dparam1=val1 -Dparam2=val2\""
+	inputArgs := "--conf spark.driver.extraJavaOptions='-XX:+PrintGC -Dparam1=val1 -Dparam2=val2' main.py 100"
+	expected := "--conf=spark.driver.extraJavaOptions=-XX:+PrintGC -Dparam1=val1 -Dparam2=val2"
 	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
 	assert.Equal(suite.T(), expected, actual[0])
 }
@@ -66,7 +64,7 @@ func (suite *CliTestSuite) TestCleanUpSubmitArgs_With_Spaces() {
 func (suite *CliTestSuite) TestCleanUpSubmitArgs_With_Special_Characters() {
 	_, args := sparkSubmitArgSetup()
 	inputArgs := "--conf spark.driver.extraJavaOptions=\"-Dparam1='val 1?' -Dparam2=\"val\\ 2!\" -Dmulti.dot.param3='val\\ 3' -Dpath=$PATH\" main.py 100"
-	expected := "--conf=spark.driver.extraJavaOptions=\"-Dparam1='val 1?' -Dparam2=\"val 2!\" -Dmulti.dot.param3='val\\ 3' -Dpath=$PATH\""
+	expected := "--conf=spark.driver.extraJavaOptions=-Dparam1='val 1?' -Dparam2=val 2! -Dmulti.dot.param3='val 3' -Dpath=$PATH"
 	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
 	assert.Equal(suite.T(), expected, actual[0])
 }
@@ -75,7 +73,7 @@ func (suite *CliTestSuite) TestCleanUpSubmitArgs_Multiline() {
 	inputArgs := "--conf spark.driver.extraJavaOptions='-XX:+PrintGC -XX:+PrintGCTimeStamps' \n" +
 		"--supervise --driver-memory 1g \n" +
 		"main.py 100"
-	expected := []string{"--conf=spark.driver.extraJavaOptions=\"-XX:+PrintGC -XX:+PrintGCTimeStamps\"", "--driver-memory=1g", "main.py"}
+	expected := []string{"--conf=spark.driver.extraJavaOptions=-XX:+PrintGC -XX:+PrintGCTimeStamps", "--supervise", "--driver-memory=1g", "main.py"}
 	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
 	assert.Equal(suite.T(), expected, actual)
 }
