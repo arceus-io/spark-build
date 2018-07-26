@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/suite"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 const image = "mesosphere/spark"
@@ -19,7 +21,8 @@ const keytabPrefixed = "__dcos_base64__keytab"
 const keytab = "keytab"
 const sparkAuthSecret = "spark-auth-secret"
 const marathonAppId = "spark-app"
-var marathonConfig = map[string]interface{}{ "app": map[string]interface{}{ "id": marathonAppId }}
+
+var marathonConfig = map[string]interface{}{"app": map[string]interface{}{"id": marathonAppId}}
 
 type CliTestSuite struct {
 	suite.Suite
@@ -38,15 +41,43 @@ func TestCliTestSuite(t *testing.T) {
 // test spaces
 func (suite *CliTestSuite) TestCleanUpSubmitArgs() {
 	_, args := sparkSubmitArgSetup()
-	inputArgs := "--conf    spark.app.name=kerberosStreaming   --conf spark.cores.max=8"
+	inputArgs := "--conf    spark.app.name=kerberosStreaming   --conf spark.cores.max=8 main.jar 100"
 	submitArgs, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
+	fmt.Printf("Actual: %s", submitArgs)
 	if "--conf=spark.app.name=kerberosStreaming" != submitArgs[0] {
+		fmt.Printf("Actual: %s", submitArgs[0])
 		suite.T().Errorf("Failed to reduce spaces while cleaning submit args.")
 	}
 
 	if "--conf=spark.cores.max=8" != submitArgs[1] {
+		fmt.Printf("Actual: %s", submitArgs[1])
 		suite.T().Errorf("Failed to reduce spaces while cleaning submit args.")
 	}
+}
+
+func (suite *CliTestSuite) TestCleanUpSubmitArgs_With_Spaces() {
+	_, args := sparkSubmitArgSetup()
+	inputArgs := "--name 'App with spaces in name' --conf spark.driver.extraJavaOptions='-XX:+PrintGC -Dparam1=val1 -Dparam2=val2' main.py 100"
+	expected := "--name=\"App with spaces in name\" --conf=spark.driver.extraJavaOptions=\"-XX:+PrintGC -Dparam1=val1 -Dparam2=val2\""
+	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
+	assert.Equal(suite.T(), expected, actual[0])
+}
+
+func (suite *CliTestSuite) TestCleanUpSubmitArgs_With_Special_Characters() {
+	_, args := sparkSubmitArgSetup()
+	inputArgs := "--conf spark.driver.extraJavaOptions=\"-Dparam1='val 1?' -Dparam2=\"val\\ 2!\" -Dmulti.dot.param3='val\\ 3' -Dpath=$PATH\" main.py 100"
+	expected := "--conf=spark.driver.extraJavaOptions=\"-Dparam1='val 1?' -Dparam2=\"val 2!\" -Dmulti.dot.param3='val\\ 3' -Dpath=$PATH\""
+	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
+	assert.Equal(suite.T(), expected, actual[0])
+}
+func (suite *CliTestSuite) TestCleanUpSubmitArgs_Multiline() {
+	_, args := sparkSubmitArgSetup()
+	inputArgs := "--conf spark.driver.extraJavaOptions='-XX:+PrintGC -XX:+PrintGCTimeStamps' \n" +
+		"--supervise --driver-memory 1g \n" +
+		"main.py 100"
+	expected := []string{"--conf=spark.driver.extraJavaOptions=\"-XX:+PrintGC -XX:+PrintGCTimeStamps\"", "--driver-memory=1g", "main.py"}
+	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
+	assert.Equal(suite.T(), expected, actual)
 }
 
 // test scopts pattern for app args when have full submit args
@@ -119,17 +150,17 @@ func (suite *CliTestSuite) TestPayloadSimple() {
 	}
 
 	stringProps := map[string]string{
-		"spark.driver.cores": driverCores,
-		"spark.cores.max": maxCores,
+		"spark.driver.cores":                         driverCores,
+		"spark.cores.max":                            maxCores,
 		"spark.mesos.executor.docker.forcePullImage": "true",
-		"spark.mesos.executor.docker.image": image,
-		"spark.mesos.task.labels": fmt.Sprintf("DCOS_SPACE:%s", marathonAppId),
-		"spark.ssl.noCertVerification": "true",
-		"spark.executor.memory": "1G", // default
-		"spark.submit.deployMode": "cluster",
-		"spark.mesos.driver.labels": fmt.Sprintf("DCOS_SPACE:%s", marathonAppId),
-		"spark.driver.memory": driverMemory,
-		"spark.jars": appJar,
+		"spark.mesos.executor.docker.image":          image,
+		"spark.mesos.task.labels":                    fmt.Sprintf("DCOS_SPACE:%s", marathonAppId),
+		"spark.ssl.noCertVerification":               "true",
+		"spark.executor.memory":                      "1G", // default
+		"spark.submit.deployMode":                    "cluster",
+		"spark.mesos.driver.labels":                  fmt.Sprintf("DCOS_SPACE:%s", marathonAppId),
+		"spark.driver.memory":                        driverMemory,
+		"spark.jars":                                 appJar,
 	}
 
 	v, ok := m["sparkProperties"].(map[string]interface{})
@@ -170,17 +201,17 @@ func (suite *CliTestSuite) TestPayloadCustomImageNoExecutor() {
 	}
 
 	stringProps := map[string]string{
-		"spark.driver.cores": driverCores,
-		"spark.cores.max": maxCores,
+		"spark.driver.cores":                         driverCores,
+		"spark.cores.max":                            maxCores,
 		"spark.mesos.executor.docker.forcePullImage": "false",
-		"spark.mesos.executor.docker.image": "other",
-		"spark.mesos.task.labels": fmt.Sprintf("DCOS_SPACE:%s", marathonAppId),
-		"spark.ssl.noCertVerification": "true",
-		"spark.executor.memory": "1G", // default
-		"spark.submit.deployMode": "cluster",
-		"spark.mesos.driver.labels": fmt.Sprintf("DCOS_SPACE:%s", marathonAppId),
-		"spark.driver.memory": driverMemory,
-		"spark.jars": appJar,
+		"spark.mesos.executor.docker.image":          "other",
+		"spark.mesos.task.labels":                    fmt.Sprintf("DCOS_SPACE:%s", marathonAppId),
+		"spark.ssl.noCertVerification":               "true",
+		"spark.executor.memory":                      "1G", // default
+		"spark.submit.deployMode":                    "cluster",
+		"spark.mesos.driver.labels":                  fmt.Sprintf("DCOS_SPACE:%s", marathonAppId),
+		"spark.driver.memory":                        driverMemory,
+		"spark.jars":                                 appJar,
 	}
 
 	v, ok := m["sparkProperties"].(map[string]interface{})
@@ -206,8 +237,8 @@ func (suite *CliTestSuite) checkProps(obs map[string]interface{}, expected map[s
 func (suite *CliTestSuite) checkSecret(secretPath, secretFile string) {
 	inputArgs := fmt.Sprintf(
 		"--driver-cores %s "+
-			"--kerberos-principal %s " +
-			"--keytab-secret-path /%s " +
+			"--kerberos-principal %s "+
+			"--keytab-secret-path /%s "+
 			"--conf spark.cores.max=%s "+
 			"--driver-memory %s "+
 			"--class %s "+
@@ -231,10 +262,10 @@ func (suite *CliTestSuite) checkSecret(secretPath, secretFile string) {
 	}
 
 	secretProps := map[string]string{
-		"spark.yarn.principal": principal,
-		"spark.mesos.containerizer": "mesos",
+		"spark.yarn.principal":                principal,
+		"spark.mesos.containerizer":           "mesos",
 		"spark.mesos.driver.secret.filenames": secretFile,
-		"spark.mesos.driver.secret.names": fmt.Sprintf("/%s", secretPath),
+		"spark.mesos.driver.secret.names":     fmt.Sprintf("/%s", secretPath),
 	}
 	suite.checkProps(v, secretProps)
 }
@@ -246,10 +277,9 @@ func (suite *CliTestSuite) TestPayloadWithSecret() {
 
 func (suite *CliTestSuite) TestSaslSecret() {
 	inputArgs := fmt.Sprintf(
-		"--executor-auth-secret /%s " +
+		"--executor-auth-secret /%s "+
 			"--class %s "+
 			"%s --input1 value1 --input2 value2", sparkAuthSecret, mainClass, appJar)
-
 
 	cmd := createCommand(inputArgs, image)
 	payload, err := buildSubmitJson(&cmd, marathonConfig)
@@ -263,13 +293,13 @@ func (suite *CliTestSuite) TestSaslSecret() {
 	}
 
 	stringProps := map[string]string{
-		"spark.authenticate": "true",
-		"spark.mesos.containerizer": "mesos",
+		"spark.authenticate":                      "true",
+		"spark.mesos.containerizer":               "mesos",
 		"spark.authenticate.enableSaslEncryption": "true",
-		"spark.authenticate.secret": "spark_shared_secret",
-		"spark.executorEnv._SPARK_AUTH_SECRET": "spark_shared_secret",
-		"spark.mesos.driver.secret.filenames": sparkAuthSecret,
-		"spark.mesos.driver.secret.names": fmt.Sprintf("/%s", sparkAuthSecret),
+		"spark.authenticate.secret":               "spark_shared_secret",
+		"spark.executorEnv._SPARK_AUTH_SECRET":    "spark_shared_secret",
+		"spark.mesos.driver.secret.filenames":     sparkAuthSecret,
+		"spark.mesos.driver.secret.names":         fmt.Sprintf("/%s", sparkAuthSecret),
 	}
 
 	v, ok := m["sparkProperties"].(map[string]interface{})
