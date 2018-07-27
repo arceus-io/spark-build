@@ -150,8 +150,10 @@ Args:
 		StringVar(&args.mainClass) // note: spark-submit can autodetect, but only for file://local.jar
 	submit.Flag("properties-file", "Path to file containing whitespace-separated Spark property defaults.").
 		PlaceHolder("PATH").ExistingFileVar(&args.propertiesFile)
-	submit.Flag("conf", "Custom Spark configuration properties.").
-		PlaceHolder("PROP=VALUE").StringMapVar(&args.properties)
+	submit.Flag("conf", "Custom Spark configuration properties. "+
+		"For properties with multiple values, wrap in double quotes."+
+		"E.g. conf=property=\"val1 val2\"").
+		PlaceHolder("prop=\"value\"").StringMapVar(&args.properties)
 	submit.Flag("kerberos-principal", "Principal to be used to login to KDC.").
 		PlaceHolder("user@REALM").Default("").StringVar(&args.kerberosPrincipal)
 	submit.Flag("keytab-secret-path", "Path to Keytab in secret store to be used in the Spark drivers").
@@ -285,6 +287,7 @@ func parseApplicationFile(args *sparkArgs) error {
 }
 
 /*
+  we use Kingpin to parse CLI commands and options
   spark-submit by convention uses '--arg val' while kingpin only supports --arg=val
   cleanUpSubmitArgs merges all white-spaced configs in submit-args for kingpin to process
 */
@@ -293,30 +296,29 @@ func cleanUpSubmitArgs(argsStr string, boolVals []*sparkVal) ([]string, []string
 	argsStr = collapseSpacesPattern.ReplaceAllString(argsStr, " ")
 	// clean up any instances of shell-style escaped newlines: "arg1\\narg2" => "arg1 arg2"
 	argsStr = strings.TrimSpace(backslashNewlinePattern.ReplaceAllLiteralString(argsStr, " "))
-	// shellwords cleans submit-args of special characters and splits on whitespace
 	args, err := shellwords.Parse(argsStr)
 	if err != nil {
 		fmt.Printf("Could not parse string args correctly. Error: %v+", err)
 		os.Exit(1)
 	}
 	sparkArgs, appArgs := make([]string, 0), make([]string, 0)
-ARGLOOP:
+LOOP:
 	for i := 0; i < len(args); {
 		current := args[i]
 		switch {
-		// if current is a spark jar/app, we've processed all flags 
+		// if current is a spark jar/app, we've processed all flags
 		// add jar to sparkArgs and append the rest to appArgs
 		case strings.HasSuffix(current, ".jar") || strings.HasSuffix(current, ".r") || strings.HasSuffix(current, ".py"):
 			sparkArgs = append(sparkArgs, args[i])
 			appArgs = append(appArgs, args[i+1:]...)
-			break ARGLOOP
+			break LOOP
 		case strings.HasPrefix(current, "--"):
 			// if current is a boolean flag add to sparkArgs; eg --supervise
 			for _, boolVal := range boolVals {
 				if boolVal.flagName == current[2:] {
 					sparkArgs = append(sparkArgs, current)
 					i++
-					continue ARGLOOP
+					continue LOOP
 				}
 			}
 			// if not boolean, merge with next item into arg=val; eg --driver-memory=512m
@@ -324,41 +326,13 @@ ARGLOOP:
 			sparkArgs = append(sparkArgs, current+"="+next)
 			i += 2
 		default:
-			// otherwise current is a continuation of the last arg and should not be split
+			// otherwise current is a continuation of the last arg and should not have been split
 			// eg extraJavaOptions="-Dparam1 -Dparam2" was parsed as [extraJavaOptions, -Dparam1, -Dparam2]
 			previous := sparkArgs[len(sparkArgs)-1]
 			combined := previous[:len(previous)-1] + " " + current
 			sparkArgs = append(sparkArgs[:len(sparkArgs)-1], combined)
 			i++
 		}
-		// if strings.HasPrefix(current, "--") {
-		// 	// If current is a boolean flag add to sparkArgs; eg --supervise
-		// 	for _, boolVal := range boolVals {
-		// 		if boolVal.flagName == current[2:] {
-		// 			sparkArgs = append(sparkArgs, current)
-		// 			i++
-		// 			continue ARGLOOP
-		// 		}
-		// 	}
-		// 	// if not boolean, merge with next item into arg="val"; eg --driver-memory="512m"
-		// 	next := args[i+1]
-		// 	sparkArgs = append(sparkArgs, current+"="+next)
-		// 	i += 2
-		// 	continue
-		// }
-		// // If current is a spark jar/app, add it to sparkArgs and append the rest to appArgs
-		// if strings.HasSuffix(current, ".jar") || strings.HasSuffix(current, ".r") || strings.HasSuffix(current, ".py") {
-		// 	sparkArgs = append(sparkArgs, args[i])
-		// 	appArgs = append(appArgs, args[i+1:]...)
-		// 	break
-		// } else {
-		// 	// otherwise current is a continuation of the last arg and should not be split
-		// 	// eg extraJavaOptions="-Dparam1 -Dparam2" would have been parsed as [extraJavaOptions, -Dparam1, -Dparam2]
-		// 	previous := sparkArgs[len(sparkArgs)-1]
-		// 	combined := previous[:len(previous)-1] + " " + current
-		// 	sparkArgs = append(sparkArgs[:len(sparkArgs)-1], combined)
-		// 	i++
-		// }
 	}
 
 	if config.Verbose {

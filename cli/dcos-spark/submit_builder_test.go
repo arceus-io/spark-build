@@ -43,7 +43,6 @@ func (suite *CliTestSuite) TestCleanUpSubmitArgs() {
 	_, args := sparkSubmitArgSetup()
 	inputArgs := "--conf    spark.app.name=kerberosStreaming   --conf spark.cores.max=8 main.jar 100"
 	submitArgs, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
-	fmt.Printf("Actual: %s", submitArgs)
 	if "--conf=spark.app.name=kerberosStreaming" != submitArgs[0] {
 		suite.T().Errorf("Failed to reduce spaces while cleaning submit args.")
 	}
@@ -55,7 +54,7 @@ func (suite *CliTestSuite) TestCleanUpSubmitArgs() {
 
 func (suite *CliTestSuite) TestCleanUpSubmitArgs_With_Spaces() {
 	_, args := sparkSubmitArgSetup()
-	inputArgs := "--conf spark.driver.extraJavaOptions='-XX:+PrintGC -Dparam1=val1 -Dparam2=val2' main.py 100"
+	inputArgs := "'--conf spark.driver.extraJavaOptions=\"-XX:+PrintGC -Dparam1=val1 -Dparam2=val2\" main.py 100'"
 	expected := "--conf=spark.driver.extraJavaOptions=-XX:+PrintGC -Dparam1=val1 -Dparam2=val2"
 	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
 	assert.Equal(suite.T(), expected, actual[0])
