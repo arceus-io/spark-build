@@ -52,22 +52,39 @@ func (suite *CliTestSuite) TestCleanUpSubmitArgs() {
 	}
 }
 
-func (suite *CliTestSuite) TestCleanUpSubmitArgs_With_Spaces() {
+func (suite *CliTestSuite) TestCleanUpSubmitArgsWithMulitpleValues() {
 	_, args := sparkSubmitArgSetup()
-	inputArgs := "'--conf spark.driver.extraJavaOptions=\"-XX:+PrintGC -Dparam1=val1 -Dparam2=val2\" main.py 100'"
+	inputArgs := "--conf spark.driver.extraJavaOptions=\"-XX:+PrintGC -Dparam1=val1 -Dparam2=val2\" main.py 100"
 	expected := "--conf=spark.driver.extraJavaOptions=-XX:+PrintGC -Dparam1=val1 -Dparam2=val2"
 	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
 	assert.Equal(suite.T(), expected, actual[0])
 }
 
-func (suite *CliTestSuite) TestCleanUpSubmitArgs_With_Special_Characters() {
+func (suite *CliTestSuite) TestCleanUpSubmitArgsWithSpecialCharacters() {
 	_, args := sparkSubmitArgSetup()
-	inputArgs := "--conf spark.driver.extraJavaOptions=\"-Dparam1='val 1?' -Dparam2=\"val\\ 2!\" -Dmulti.dot.param3='val\\ 3' -Dpath=$PATH\" main.py 100"
+	inputArgs := "--conf=spark.driver.extraJavaOptions=\"-Dparam1='val 1?' -Dparam2=\"val\\ 2!\" -Dmulti.dot.param3='val\\ 3' -Dpath=$PATH\" main.py 100"
 	expected := "--conf=spark.driver.extraJavaOptions=-Dparam1='val 1?' -Dparam2=val 2! -Dmulti.dot.param3='val 3' -Dpath=$PATH"
 	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
 	assert.Equal(suite.T(), expected, actual[0])
 }
-func (suite *CliTestSuite) TestCleanUpSubmitArgs_Multiline() {
+
+func (suite *CliTestSuite) TestCleanUpSubmitArgsConfsAlreadyHasEquals() {
+	_, args := sparkSubmitArgSetup()
+	inputArgs := "'--conf=spark.driver.extraJavaOptions=\"-Dparam1=val1\" main.py 100'"
+	expected := "--conf=spark.driver.extraJavaOptions=-Dparam1=val1"
+	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
+	assert.Equal(suite.T(), expected, actual[0])
+}
+
+func (suite *CliTestSuite) TestCleanUpSubmitArgsConfsInSingleQuotes() {
+	_, args := sparkSubmitArgSetup()
+	inputArgs := "'--conf=spark.driver.extraJavaOptions=\"-Dparam1=val1\" main.py 100'"
+	expected := "--conf=spark.driver.extraJavaOptions=-Dparam1=val1"
+	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
+	assert.Equal(suite.T(), expected, actual[0])
+}
+
+func (suite *CliTestSuite) TestCleanUpSubmitArgsMultilines() {
 	_, args := sparkSubmitArgSetup()
 	inputArgs := "--conf spark.driver.extraJavaOptions='-XX:+PrintGC -XX:+PrintGCTimeStamps' \n" +
 		"--supervise --driver-memory 1g \n" +

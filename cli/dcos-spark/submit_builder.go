@@ -151,9 +151,9 @@ Args:
 	submit.Flag("properties-file", "Path to file containing whitespace-separated Spark property defaults.").
 		PlaceHolder("PATH").ExistingFileVar(&args.propertiesFile)
 	submit.Flag("conf", "Custom Spark configuration properties. "+
-		"For properties with multiple values, wrap in double quotes."+
-		"E.g. conf=property=\"val1 val2\"").
-		PlaceHolder("prop=\"value\"").StringMapVar(&args.properties)
+		"For properties with multiple values, wrap in single quotes."+
+		"E.g. conf=property='val1 val2'").
+		PlaceHolder("prop=value").StringMapVar(&args.properties)
 	submit.Flag("kerberos-principal", "Principal to be used to login to KDC.").
 		PlaceHolder("user@REALM").Default("").StringVar(&args.kerberosPrincipal)
 	submit.Flag("keytab-secret-path", "Path to Keytab in secret store to be used in the Spark drivers").
@@ -302,7 +302,7 @@ func cleanUpSubmitArgs(argsStr string, boolVals []*sparkVal) ([]string, []string
 	}
 	args, err := shellwords.Parse(argsStr)
 	if err != nil {
-		fmt.Printf("Could not parse string args correctly. Error: %v+", err)
+		fmt.Printf("Could not parse string args correctly. Error: %v", err)
 		os.Exit(1)
 	}
 	sparkArgs, appArgs := make([]string, 0), make([]string, 0)
@@ -325,7 +325,12 @@ LOOP:
 					continue LOOP
 				}
 			}
-			// if not boolean, merge with next item into arg=val; eg --driver-memory=512m
+			if strings.Contains(current, "=") {	// already assigned, leave it alone!
+				sparkArgs = append(sparkArgs, current)
+				i++
+				continue LOOP
+			}
+			// otherwise, merge with next item into arg=val; eg --driver-memory=512m
 			next := args[i+1]
 			sparkArgs = append(sparkArgs, current+"="+next)
 			i += 2
@@ -338,10 +343,9 @@ LOOP:
 			i++
 		}
 	}
-
 	if config.Verbose {
-		client.PrintVerbose("Translated spark-submit arguments: '%s'", sparkArgs)
-		client.PrintVerbose("Translated application arguments: '%s'", appArgs)
+		client.PrintVerbose("Translated spark-submit arguments: '%s'", strings.Join(sparkArgs, ", "))
+		client.PrintVerbose("Translated application arguments: '%s'", strings.Join(appArgs, ", "))
 	}
 	return sparkArgs, appArgs
 }
