@@ -289,7 +289,7 @@ func parseApplicationFile(args *sparkArgs) error {
 /*
   we use Kingpin to parse CLI commands and options
   spark-submit by convention uses '--arg val' while kingpin only supports --arg=val
-  cleanUpSubmitArgs merges all white-spaced configs in submit-args for kingpin to process
+  cleanUpSubmitArgs transforms the former to the latter
 */
 func cleanUpSubmitArgs(argsStr string, boolVals []*sparkVal) ([]string, []string) {
 	// collapse two or more spaces to one
