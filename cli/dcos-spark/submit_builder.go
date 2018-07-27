@@ -296,6 +296,10 @@ func cleanUpSubmitArgs(argsStr string, boolVals []*sparkVal) ([]string, []string
 	argsStr = collapseSpacesPattern.ReplaceAllString(argsStr, " ")
 	// clean up any instances of shell-style escaped newlines: "arg1\\narg2" => "arg1 arg2"
 	argsStr = strings.TrimSpace(backslashNewlinePattern.ReplaceAllLiteralString(argsStr, " "))
+	// remove any open/closing singleQuotes so shellwords can parse correctly
+	if argsStr[0] == '\'' && argsStr[len(argsStr)-1] == '\'' {
+		argsStr = argsStr[1 : len(argsStr)-2]
+	}
 	args, err := shellwords.Parse(argsStr)
 	if err != nil {
 		fmt.Printf("Could not parse string args correctly. Error: %v+", err)
