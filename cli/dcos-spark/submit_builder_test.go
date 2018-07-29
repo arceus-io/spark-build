@@ -62,21 +62,21 @@ func (suite *CliTestSuite) TestCleanUpSubmitArgsWithMulitpleValues() {
 
 func (suite *CliTestSuite) TestCleanUpSubmitArgsWithSpecialCharacters() {
 	_, args := sparkSubmitArgSetup()
-	inputArgs := "--conf=spark.driver.extraJavaOptions=\"-Dparam1='val 1?' -Dparam2=\"val\\ 2!\" -Dmulti.dot.param3='val\\ 3' -Dpath=$PATH\" main.py 100"
+	inputArgs := "--conf spark.driver.extraJavaOptions=\"-Dparam1='val 1?' -Dparam2=\"val\\ 2!\" -Dmulti.dot.param3='val\\ 3' -Dpath=$PATH\" main.py 100"
 	expected := "--conf=spark.driver.extraJavaOptions=-Dparam1='val 1?' -Dparam2=val 2! -Dmulti.dot.param3='val 3' -Dpath=$PATH"
 	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
 	assert.Equal(suite.T(), expected, actual[0])
 }
 
-func (suite *CliTestSuite) TestCleanUpSubmitArgsConfsAlreadyHasEquals() {
+func (suite *CliTestSuite) TestCleanUpSubmitArgsConfsInSingleQuotes() {
 	_, args := sparkSubmitArgSetup()
-	inputArgs := "'--conf=spark.driver.extraJavaOptions=\"-Dparam1=val1\" main.py 100'"
+	inputArgs := "'--conf spark.driver.extraJavaOptions=-Dparam1=val1 main.py 100'"
 	expected := "--conf=spark.driver.extraJavaOptions=-Dparam1=val1"
 	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
 	assert.Equal(suite.T(), expected, actual[0])
 }
 
-func (suite *CliTestSuite) TestCleanUpSubmitArgsConfsInSingleQuotes() {
+func (suite *CliTestSuite) TestCleanUpSubmitArgsConfsAlreadyHasEquals() {
 	_, args := sparkSubmitArgSetup()
 	inputArgs := "'--conf=spark.driver.extraJavaOptions=\"-Dparam1=val1\" main.py 100'"
 	expected := "--conf=spark.driver.extraJavaOptions=-Dparam1=val1"

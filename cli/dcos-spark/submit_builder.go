@@ -151,8 +151,8 @@ Args:
 	submit.Flag("properties-file", "Path to file containing whitespace-separated Spark property defaults.").
 		PlaceHolder("PATH").ExistingFileVar(&args.propertiesFile)
 	submit.Flag("conf", "Custom Spark configuration properties. "+
-		"For properties with multiple values, wrap in single quotes."+
-		"E.g. conf=property='val1 val2'").
+		"For properties with multiple values, wrap in single quotes. "+
+		"e.g. conf=property='val1 val2'").
 		PlaceHolder("prop=value").StringMapVar(&args.properties)
 	submit.Flag("kerberos-principal", "Principal to be used to login to KDC.").
 		PlaceHolder("user@REALM").Default("").StringVar(&args.kerberosPrincipal)
@@ -300,6 +300,7 @@ func cleanUpSubmitArgs(argsStr string, boolVals []*sparkVal) ([]string, []string
 	if argsStr[0] == '\'' && argsStr[len(argsStr)-1] == '\'' {
 		argsStr = argsStr[1 : len(argsStr)-2]
 	}
+	fmt.Printf("input string: %s", argsStr)
 	args, err := shellwords.Parse(argsStr)
 	if err != nil {
 		fmt.Printf("Could not parse string args correctly. Error: %v", err)
@@ -325,7 +326,7 @@ LOOP:
 					continue LOOP
 				}
 			}
-			if strings.Contains(current, "=") {	// already assigned, leave it alone!
+			if strings.Contains(current, "=") { // already assigned, leave it alone!
 				sparkArgs = append(sparkArgs, current)
 				i++
 				continue LOOP
@@ -337,8 +338,7 @@ LOOP:
 		default:
 			// otherwise current is a continuation of the last arg and should not have been split
 			// eg extraJavaOptions="-Dparam1 -Dparam2" was parsed as [extraJavaOptions, -Dparam1, -Dparam2]
-			previous := sparkArgs[len(sparkArgs)-1]
-			combined := previous[:len(previous)-1] + " " + current
+			combined := sparkArgs[len(sparkArgs)-1] + " " + current
 			sparkArgs = append(sparkArgs[:len(sparkArgs)-1], combined)
 			i++
 		}

@@ -104,6 +104,15 @@ def test_sparkPi(service_name=utils.SPARK_SERVICE_NAME):
         service_name=service_name,
         args=["--class org.apache.spark.examples.SparkPi"])
 
+@pytest.mark.sanity
+def test_sparkPi_with_multi_configs(service_name=utils.SPARK_SERVICE_NAME):
+    utils.run_tests(
+        app_url=utils.SPARK_EXAMPLES,
+        app_args="100",
+        expected_output="[GC (Allocation Failure)",
+        service_name=service_name,
+        args=["--conf spark.driver.extraJavaOptions='-XX:+PrintGCDetails -XX:+PrintGCTimeStamps'",
+              "--class org.apache.spark.examples.SparkPi"])
 
 @pytest.mark.sanity
 @pytest.mark.smoke
