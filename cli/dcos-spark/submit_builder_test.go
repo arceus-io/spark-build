@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"os"
+	"testing"
 )
 
 const image = "mesosphere/spark"
@@ -84,7 +84,7 @@ func (suite *CliTestSuite) TestCleanUpSubmitArgsConfsAlreadyHasEquals() {
 	assert.Equal(suite.T(), expected, actual[0])
 }
 
-func (suite *CliTestSuite) TestCleanUpSubmitArgsMultilines() { 
+func (suite *CliTestSuite) TestCleanUpSubmitArgsMultilines() {
 	_, args := sparkSubmitArgSetup()
 	inputArgs := `--conf spark.driver.extraJavaOptions='-XX:+PrintGC -XX:+PrintGCTimeStamps' \
 	--supervise --driver-memory 1g \

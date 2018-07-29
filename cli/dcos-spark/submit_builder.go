@@ -284,19 +284,19 @@ func parseApplicationFile(args *sparkArgs) error {
 	return nil
 }
 
-  // we use Kingpin to parse CLI commands and options
-  // spark-submit by convention uses '--arg val' while kingpin only supports --arg=val
-  // cleanUpSubmitArgs transforms the former to the latter
-  func cleanUpSubmitArgs(argsStr string, boolVals []*sparkVal) ([]string, []string) {
-	if argsStr[0] == '\'' {	// Force users to submit-args in double-quotes
-		log.Fatalf("ERROR: submit-args cannot be wrapped in single-quotes.\n"+
+// we use Kingpin to parse CLI commands and options
+// spark-submit by convention uses '--arg val' while kingpin only supports --arg=val
+// cleanUpSubmitArgs transforms the former to the latter
+func cleanUpSubmitArgs(argsStr string, boolVals []*sparkVal) ([]string, []string) {
+	if argsStr[0] == '\'' { // Force users to submit-args in double-quotes
+		log.Fatalf("ERROR: submit-args cannot be wrapped in single-quotes.\n" +
 			"Use double-quotes instead i.e. --submit-args=\"<args>\"\n")
 	}
 	// clean up any instances of shell-style escaped newlines: "arg1\\narg2" => "arg1 arg2"
 	argsStr = strings.TrimSpace(backslashNewlinePattern.ReplaceAllLiteralString(argsStr, " "))
 	// collapse two or more spaces to one
 	argsStr = collapseSpacesPattern.ReplaceAllString(argsStr, " ")
-	
+
 	args, err := shellwords.Parse(argsStr)
 	if err != nil {
 		log.Fatalf("Could not parse string args correctly. Error: %v", err)
