@@ -21,8 +21,6 @@ import (
 var keyWhitespaceValPattern = regexp.MustCompile("(.+)\\s+(.+)")
 var backslashNewlinePattern = regexp.MustCompile("\\s*\\\\s*\\n\\s+")
 var collapseSpacesPattern = regexp.MustCompile(`[\s\p{Zs}]{2,}`)
-var wrappedInQuotes = regexp.MustCompile(`^(".+"|'.+')$`)
-var shellSpecialChars = regexp.MustCompile(`.*([ '<>&|\?\*;!#\\(\)"$` + "`]).*") // ``+"" because backticks cannot be escaped
 
 type sparkVal struct {
 	flagName string
@@ -286,30 +284,27 @@ func parseApplicationFile(args *sparkArgs) error {
 	return nil
 }
 
-/*
-  we use Kingpin to parse CLI commands and options
-  spark-submit by convention uses '--arg val' while kingpin only supports --arg=val
-  cleanUpSubmitArgs transforms the former to the latter
-*/
-func cleanUpSubmitArgs(argsStr string, boolVals []*sparkVal) ([]string, []string) {
-	// collapse two or more spaces to one
-	argsStr = collapseSpacesPattern.ReplaceAllString(argsStr, " ")
+  // we use Kingpin to parse CLI commands and options
+  // spark-submit by convention uses '--arg val' while kingpin only supports --arg=val
+  // cleanUpSubmitArgs transforms the former to the latter
+  func cleanUpSubmitArgs(argsStr string, boolVals []*sparkVal) ([]string, []string) {
+	if argsStr[0] == '\'' {	// Force users to submit-args in double-quotes
+		log.Fatalf("ERROR: submit-args cannot be wrapped in single-quotes.\n"+
+			"Use double-quotes instead i.e. --submit-args=\"<args>\"\n")
+	}
 	// clean up any instances of shell-style escaped newlines: "arg1\\narg2" => "arg1 arg2"
 	argsStr = strings.TrimSpace(backslashNewlinePattern.ReplaceAllLiteralString(argsStr, " "))
-	// remove any open/closing singleQuotes so shellwords can parse correctly
-	if argsStr[0] == '\'' && argsStr[len(argsStr)-1] == '\'' {
-		argsStr = argsStr[1 : len(argsStr)-2]
-	}
-	fmt.Printf("input string: %s", argsStr)
+	// collapse two or more spaces to one
+	argsStr = collapseSpacesPattern.ReplaceAllString(argsStr, " ")
+	
 	args, err := shellwords.Parse(argsStr)
 	if err != nil {
-		fmt.Printf("Could not parse string args correctly. Error: %v", err)
-		os.Exit(1)
+		log.Fatalf("Could not parse string args correctly. Error: %v", err)
 	}
 	sparkArgs, appArgs := make([]string, 0), make([]string, 0)
 LOOP:
 	for i := 0; i < len(args); {
-		current := args[i]
+		current := strings.TrimSpace(args[i])
 		switch {
 		// if current is a spark jar/app, we've processed all flags
 		// add jar to sparkArgs and append the rest to appArgs
@@ -326,7 +321,7 @@ LOOP:
 					continue LOOP
 				}
 			}
-			if strings.Contains(current, "=") { // already assigned, leave it alone!
+			if strings.Contains(current, "=") { // already assigned, leave it alone
 				sparkArgs = append(sparkArgs, current)
 				i++
 				continue LOOP
