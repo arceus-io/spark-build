@@ -108,11 +108,12 @@ def test_sparkPi(service_name=utils.SPARK_SERVICE_NAME):
 @pytest.mark.sanity
 def test_spark_with_multi_configs(service_name=utils.SPARK_SERVICE_NAME):
     utils.run_tests(
-        app_url="https://s3-us-west-1.amazonaws.com/svt-dev/jars/dcos-spark-scala-tests-assembly-0.2-DCOS-38138.jar",
+        app_url=utils.dcos_test_jar_url(),
         app_args="",
-        expected_output="spark.executor.extraJavaOptions,-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Dparam3=val3 -Dparam4=\"This one with spaces\"'",
+        expected_output="spark.executor.extraJavaOptions,-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Dparam3=val3",
         service_name=service_name,
-        args=["--conf spark.driver.extraJavaOptions='-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Dparam3=val3 -Dparam4=\"This one with spaces\"'",
+        args=["--conf spark.driver.extraJavaOptions='-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Dparam3=val3'",
+              "--conf spark.mesos.containerizer=mesos",
               "--class MultiConfs"])
 
 

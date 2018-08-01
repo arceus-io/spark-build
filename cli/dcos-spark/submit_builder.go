@@ -149,8 +149,8 @@ Args:
 	submit.Flag("properties-file", "Path to file containing whitespace-separated Spark property defaults.").
 		PlaceHolder("PATH").ExistingFileVar(&args.propertiesFile)
 	submit.Flag("conf", "Custom Spark configuration properties. "+
-		"For properties with multiple values, wrap in single quotes. "+
-		"e.g. conf=property='val1 val2'").
+		"If submitting properties with multiple values, "+
+		"wrap in single quotes e.g. --conf prop='val1 val2'").
 		PlaceHolder("prop=value").StringMapVar(&args.properties)
 	submit.Flag("kerberos-principal", "Principal to be used to login to KDC.").
 		PlaceHolder("user@REALM").Default("").StringVar(&args.kerberosPrincipal)
@@ -316,7 +316,7 @@ LOOP:
 					continue LOOP
 				}
 			}
-			if strings.Contains(current, "=") { 
+			if strings.Contains(current, "=") {
 				// already in the form arg=val, no merge required
 				sparkArgs = append(sparkArgs, current)
 				i++

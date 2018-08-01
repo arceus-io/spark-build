@@ -2,7 +2,7 @@
     "spark_version": "2.2.1",
     "default_spark_dist": {
         "hadoop_version": "2.7",
-        "uri": "https://svt-dev.s3.amazonaws.com/spark/spark-2.2.1-bin-2.7.3-dcos-38138.tgz"
+        "uri": "svt-dev.s3.amazonaws.com/spark/spark-2.2.1-bin-2.7.3-dcos-38138.tgz"
     },
     "spark_dist": [
         {
