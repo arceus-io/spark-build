@@ -288,15 +288,11 @@ func parseApplicationFile(args *sparkArgs) error {
 // spark-submit by convention uses '--arg val' while kingpin only supports --arg=val
 // cleanUpSubmitArgs transforms the former to the latter
 func cleanUpSubmitArgs(argsStr string, boolVals []*sparkVal) ([]string, []string) {
-	if argsStr[0] == '\'' { // Force users to submit-args in double-quotes
-		log.Fatalf("ERROR: submit-args cannot be wrapped in single-quotes.\n" +
-			"Use double-quotes instead i.e. --submit-args=\"<args>\"\n")
-	}
 	// clean up any instances of shell-style escaped newlines: "arg1\\narg2" => "arg1 arg2"
 	argsStr = strings.TrimSpace(backslashNewlinePattern.ReplaceAllLiteralString(argsStr, " "))
 	// collapse two or more spaces to one
 	argsStr = collapseSpacesPattern.ReplaceAllString(argsStr, " ")
-
+	// parse argsStr into []string args maintaining shell escaped sequences
 	args, err := shellwords.Parse(argsStr)
 	if err != nil {
 		log.Fatalf("Could not parse string args correctly. Error: %v", err)
@@ -306,14 +302,13 @@ LOOP:
 	for i := 0; i < len(args); {
 		current := strings.TrimSpace(args[i])
 		switch {
-		// if current is a spark jar/app, we've processed all flags
-		// add jar to sparkArgs and append the rest to appArgs
+		// if current is a spark jar/app, we've processed all flags; add jar to sparkArgs and append the rest to appArgs
 		case strings.HasSuffix(current, ".jar") || strings.HasSuffix(current, ".r") || strings.HasSuffix(current, ".py"):
 			sparkArgs = append(sparkArgs, args[i])
 			appArgs = append(appArgs, args[i+1:]...)
 			break LOOP
 		case strings.HasPrefix(current, "--"):
-			// if current is a boolean flag add to sparkArgs; eg --supervise
+			// if current is a boolean flag, no merge required; eg --supervise
 			for _, boolVal := range boolVals {
 				if boolVal.flagName == current[2:] {
 					sparkArgs = append(sparkArgs, current)
@@ -321,17 +316,18 @@ LOOP:
 					continue LOOP
 				}
 			}
-			if strings.Contains(current, "=") { // already assigned, leave it alone
+			if strings.Contains(current, "=") { 
+				// already in the form arg=val, no merge required
 				sparkArgs = append(sparkArgs, current)
 				i++
 				continue LOOP
 			}
-			// otherwise, merge with next item into arg=val; eg --driver-memory=512m
+			// otherwise, merge current with next into form arg=val; eg --driver-memory=512m
 			next := args[i+1]
 			sparkArgs = append(sparkArgs, current+"="+next)
 			i += 2
 		default:
-			// otherwise current is a continuation of the last arg and should not have been split
+			// if not a flag or jar, current is a continuation of the last arg and should not have been split
 			// eg extraJavaOptions="-Dparam1 -Dparam2" was parsed as [extraJavaOptions, -Dparam1, -Dparam2]
 			combined := sparkArgs[len(sparkArgs)-1] + " " + current
 			sparkArgs = append(sparkArgs[:len(sparkArgs)-1], combined)

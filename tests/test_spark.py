@@ -109,10 +109,10 @@ def test_sparkPi(service_name=utils.SPARK_SERVICE_NAME):
 def test_spark_with_multi_configs(service_name=utils.SPARK_SERVICE_NAME):
     utils.run_tests(
         app_url="https://s3-us-west-1.amazonaws.com/svt-dev/jars/dcos-spark-scala-tests-assembly-0.2-DCOS-38138.jar",
-        app_args=None,
-        expected_output="(spark.executor.extraJavaOptions,-XX:+PrintGCDetails -XX:+PrintGCTimeStamps port=123)",
+        app_args="",
+        expected_output="spark.executor.extraJavaOptions,-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Dparam3=val3 -Dparam4=\"This one with spaces\"'",
         service_name=service_name,
-        args=["--conf spark.driver.extraJavaOptions='-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Dparam1=val1 port=123'",
+        args=["--conf spark.driver.extraJavaOptions='-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Dparam3=val3 -Dparam4=\"This one with spaces\"'",
               "--class MultiConfs"])
 
 

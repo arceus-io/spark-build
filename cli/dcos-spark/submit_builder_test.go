@@ -67,15 +67,6 @@ func (suite *CliTestSuite) TestCleanUpSubmitArgsWithSpecialCharacters() {
 	assert.Equal(suite.T(), expected, actual[0])
 }
 
-// func (suite *CliTestSuite) TestCleanUpSubmitArgsConfsInSingleQuotes() {
-// 	// Hm, how to test an os.Exit?
-// 	_, args := sparkSubmitArgSetup()
-// 	inputArgs := "'--conf spark.driver.extraJavaOptions=-Dparam1=val1 main.py 100'"
-// 	expected := "--conf=spark.driver.extraJavaOptions=-Dparam1=val1"
-// 	actual, _ := cleanUpSubmitArgs(inputArgs, args.boolVals)
-// 	assert.Exits(suite.T(), expected, actual[0])
-// }
-
 func (suite *CliTestSuite) TestCleanUpSubmitArgsConfsAlreadyHasEquals() {
 	_, args := sparkSubmitArgSetup()
 	inputArgs := "--conf=spark.driver.extraJavaOptions=\"-Dparam1=val1\" main.py 100"
