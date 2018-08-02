@@ -132,6 +132,7 @@ func (suite *CliTestSuite) TestPayloadSimple() {
 		"--driver-cores %s "+
 			"--conf spark.cores.max=%s "+
 			"--driver-memory %s "+
+			"--conf spark.driver.extraJavaOptions='-XX:+PrintGC -Dparam1=val1 -Dparam2=val2' "+
 			"--class %s "+
 			"%s --input1 value1 --input2 value2", driverCores, maxCores, driverMemory, mainClass, appJar)
 
@@ -165,6 +166,7 @@ func (suite *CliTestSuite) TestPayloadSimple() {
 		"spark.submit.deployMode":                    "cluster",
 		"spark.mesos.driver.labels":                  fmt.Sprintf("DCOS_SPACE:%s", marathonAppId),
 		"spark.driver.memory":                        driverMemory,
+		"spark.driver.extraJavaOptions":              "-XX:+PrintGC -Dparam1=val1 -Dparam2=val2",
 		"spark.jars":                                 appJar,
 	}
 
