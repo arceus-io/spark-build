@@ -111,8 +111,10 @@ def _get_spark_options(service_name, additional_options):
     return sdk_install.merge_dictionaries(options, additional_options)
 
 
-def run_tests(app_url, app_args, expected_output, service_name=SPARK_SERVICE_NAME, args=[]):
-    task_id = submit_job(app_url=app_url, app_args=app_args, service_name=service_name, args=args)
+def run_tests(app_url, app_args, expected_output, service_name=SPARK_SERVICE_NAME, args=[], 
+              write_conf_to_temp_file=False):
+    task_id = submit_job(app_url=app_url, app_args=app_args, service_name=service_name, args=args,
+                         write_conf_to_temp_file=write_conf_to_temp_file)
     check_job_output(task_id, expected_output)
 
 
