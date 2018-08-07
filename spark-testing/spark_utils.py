@@ -3,6 +3,7 @@ import shakedown
 import logging
 import os
 import re
+import tempfile
 import urllib
 import urllib.parse
 
@@ -123,7 +124,8 @@ def submit_job(
         spark_user=SPARK_USER,
         driver_role=SPARK_DRIVER_ROLE,
         verbose=True,
-        principal=SPARK_SERVICE_ACCOUNT):
+        principal=SPARK_SERVICE_ACCOUNT,
+        write_conf_to_temp_file=False):
 
     conf_args = args.copy()
 
@@ -140,10 +142,16 @@ def submit_job(
 
     submit_args = ' '.join([' '.join(conf_args), app_url, app_args])
     verbose_flag = "--verbose" if verbose else ""
-    stdout = sdk_cmd.svc_cli(
-        SPARK_PACKAGE_NAME,
-        service_name,
-        'run {} --submit-args="{}"'.format(verbose_flag, submit_args))
+
+    if write_conf_to_temp_file:
+        args_file = tempfile.NamedTemporaryFile("w")
+        args_file.write(submit_args)
+        args_file.flush() # Ensure content is available for CLI to read
+        service_cmd = 'run {} --submit-args="$(cat {})" '.format(verbose_flag, args_file.name)
+    else: 
+        service_cmd = 'run {} --submit-args="{}"'.format(verbose_flag, submit_args)
+    
+    stdout = sdk_cmd.svc_cli(SPARK_PACKAGE_NAME, service_name, service_cmd)
     result = re.search(r"Submission id: (\S+)", stdout)
     if not result:
         raise Exception("Unable to find submission ID in stdout:\n{}".format(stdout))
