@@ -3,6 +3,7 @@ import shakedown
 import logging
 import os
 import re
+import subprocess
 import tempfile
 import urllib
 import urllib.parse
@@ -147,14 +148,26 @@ def submit_job(
 
     if write_conf_to_temp_file:
         args_file = tempfile.NamedTemporaryFile("w")
-        args_file.write(submit_args)
+        args_file.write('dcos spark run {} --submit-args="{}"'.format(verbose_flag, submit_args))
         args_file.flush() # Ensure content is available for CLI to read
-        service_cmd = 'run {} --submit-args="$(cat {})" '.format(verbose_flag, args_file.name)
-    else: 
+        dcos_cmd = "$(cat {})".format(args_file.name)
+        LOGGER.info("(CLI) {}".format(dcos_cmd))
+        result = subprocess.run([dcos_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        if result.stdout:
+            stdout = result.stdout.decode('utf-8').strip()
+            LOGGER.info("STDOUT:\n{}".format(stdout))
+
+        if result.stderr:
+            stderr = result.stderr.decode('utf-8').strip()
+            LOGGER.info("STDERR:\n{}".format(stderr))
+            
+        result = re.search(r"Submission id: (\S+)", stdout)
+    else:
         service_cmd = 'run {} --submit-args="{}"'.format(verbose_flag, submit_args)
+        stdout = sdk_cmd.svc_cli(SPARK_PACKAGE_NAME, service_name, service_cmd)
+        result = re.search(r"Submission id: (\S+)", stdout)
     
-    stdout = sdk_cmd.svc_cli(SPARK_PACKAGE_NAME, service_name, service_cmd)
-    result = re.search(r"Submission id: (\S+)", stdout)
     if not result:
         raise Exception("Unable to find submission ID in stdout:\n{}".format(stdout))
     return result.group(1)
