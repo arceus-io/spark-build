@@ -85,6 +85,14 @@ func (suite *CliTestSuite) TestCleanUpSubmitArgsMultilines() {
 	assert.Equal(suite.T(), expected, actual)
 }
 
+func (suite *CliTestSuite) TestIsSparkApp() {
+	assert.True(suite.T(), isSparkApp("mainApp.jar"))
+	assert.True(suite.T(), isSparkApp("pythonFile.py"))
+	assert.True(suite.T(), isSparkApp("file.R"))
+	assert.False(suite.T(), isSparkApp("app.c"))
+	assert.False(suite.T(), isSparkApp("randomFlag"))
+}
+
 // test scopts pattern for app args when have full submit args
 func (suite *CliTestSuite) TestScoptAppArgs() {
 	_, args := sparkSubmitArgSetup()

@@ -302,8 +302,8 @@ LOOP:
 	for i := 0; i < len(args); {
 		current := strings.TrimSpace(args[i])
 		switch {
-		// if current is a spark jar/app, we've processed all flags; add jar to sparkArgs and append the rest to appArgs
-		case strings.HasSuffix(current, ".jar") || strings.HasSuffix(current, ".r") || strings.HasSuffix(current, ".py"):
+		// if current is a spark jar/app, we've processed all flags
+		case isSparkApp(current):
 			sparkArgs = append(sparkArgs, args[i])
 			appArgs = append(appArgs, args[i+1:]...)
 			break LOOP
@@ -339,6 +339,13 @@ LOOP:
 		client.PrintVerbose("Translated application arguments: '%s'", strings.Join(appArgs, ", "))
 	}
 	return sparkArgs, appArgs
+}
+
+func isSparkApp(str string) bool {
+	if strings.HasSuffix(str, ".jar") || strings.HasSuffix(str, ".R") || strings.HasSuffix(str, ".py") {
+		return true
+	} 
+	return false
 }
 
 func getValsFromPropertiesFile(path string) map[string]string {
