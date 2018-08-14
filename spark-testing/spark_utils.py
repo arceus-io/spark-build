@@ -150,10 +150,9 @@ def submit_job(
         args_file = tempfile.NamedTemporaryFile("w")
         args_file.write('dcos spark run {} --submit-args="{}"'.format(verbose_flag, submit_args))
         args_file.flush() # Ensure content is available for CLI to read
-        dcos_cmd = "$(cat {})".format(args_file.name)
-        LOGGER.info("(CLI) {}".format(dcos_cmd))
+        LOGGER.info("Running subprocess on file {}".format(args_file.name))
         
-        result = subprocess.run([dcos_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(args_file.name, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout = ""
         stderr = ""
 

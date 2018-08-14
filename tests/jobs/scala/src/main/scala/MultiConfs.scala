@@ -19,7 +19,7 @@ object MultiConfs {
         println("Printing all conf values...")
         conf.getAll.foreach(println)
         
-        // Verify property is set in system 
+        // Verify property is set in system     
         val props = System.getProperties()
         println("Printing all System.properties...")
         props.list(System.out)
