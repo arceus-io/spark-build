@@ -21,11 +21,7 @@ object MultiConfs {
         
         // Verify property is set in system 
         val props = System.getProperties()
+        println("Printing all System.properties...")
         props.list(System.out)
-        val key = "param3"
-        val expectedVal = "valA valB"
-        val actualVal = System.getProperty(key)
-        val sysMatched = expectedVal == actualVal
-        println(s"Key: $key was properly set in System and value $actualVal matches: $sysMatched")
     }
 }
