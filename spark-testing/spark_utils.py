@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 import urllib
 import urllib.parse
 
@@ -151,6 +152,7 @@ def submit_job(
         args_file.write('dcos spark run {} --submit-args="{}"'.format(verbose_flag, submit_args))
         args_file.flush() # Ensure content is available for CLI to read
         os.chmod(args_file.name, 0o777)
+        time.sleep(1) # Past docker bug recommends sleep/sync (https://github.com/moby/moby/issues/9547)
         LOGGER.info("Running subprocess on file {}".format(args_file.name))
         
         result = subprocess.run(args_file.name, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
