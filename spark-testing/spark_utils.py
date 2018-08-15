@@ -153,7 +153,7 @@ def submit_job(
         os.chmod(args_file.name, 0o777)
         LOGGER.info("Running subprocess on file {}".format(args_file.name))
         
-        result = subprocess.run(args_file.name, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(args_file.name, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout = ""
         stderr = ""
 
